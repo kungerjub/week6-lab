@@ -8,7 +8,7 @@ import (
     "time"
 
     "github.com/jackc/pgx/v5/pgxpool"
-
+    "strings"
     "moviehub/auth"
     "moviehub/handler"
     "moviehub/mw"
@@ -38,6 +38,8 @@ func main() {
     mux.HandleFunc("GET /api/movies", h.SearchMovies)
     mux.HandleFunc("GET /api/movies/{id}/reviews", h.ListReviews)
 
-    log.Println("MovieHub API ฟังอยู่ที่ :8080")
-    log.Fatal(http.ListenAndServe(":8080", mw.Logging(mux)))
+     origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+    log.Println("MovieHub API ฟังอยู่ที่ :8080 ต้อนรับ", origins)
+    log.Fatal(http.ListenAndServe(":8080", mw.Logging(mw.CORS(origins, mux))))
+   
 }
