@@ -3,9 +3,10 @@ package store
 import (
     "context"
     "errors"
-	"github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgconn"
     "time"
+
+    "github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5"
 )
 
 var ErrEmailTaken = errors.New("email taken")
@@ -19,18 +20,6 @@ type Member struct {
     PasswordHash string `json:"-"` // ไม่มีวันออกไปกับ JSON
 }
 
-func (s *Store) CreateMember(ctx context.Context, email, hash, name string) (Member, error) {
-    m := Member{Email: email, DisplayName: name}
-    err := s.Pool.QueryRow(ctx,
-        `INSERT INTO members (email, password_hash, display_name)
-         VALUES ($1, $2, $3)
-         RETURNING id, role`, email, hash, name).Scan(&m.ID, &m.Role)
-    var pgErr *pgconn.PgError
-    if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-        return Member{}, ErrEmailTaken
-    }
-    return m, err
-}
 func (s *Store) MemberByEmail(ctx context.Context, email string) (Member, error) {
     var m Member
     err := s.Pool.QueryRow(ctx,
@@ -42,6 +31,27 @@ func (s *Store) MemberByEmail(ctx context.Context, email string) (Member, error)
     }
     return m, err
 }
+
+var ErrDuplicate = errors.New("duplicate")
+
+func (s *Store) CreateMember(ctx context.Context, email, passwordHash, displayName string) (Member, error) {
+    var m Member
+    err := s.Pool.QueryRow(ctx, `
+        INSERT INTO members (email, password_hash, display_name)
+        VALUES ($1, $2, $3)
+        RETURNING id, email, password_hash, display_name, role`,
+        email, passwordHash, displayName,
+    ).Scan(&m.ID, &m.Email, &m.PasswordHash, &m.DisplayName, &m.Role)
+    if err != nil {
+        var pgErr *pgconn.PgError
+        if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+            return Member{}, ErrDuplicate
+        }
+        return Member{}, err
+    }
+    return m, nil
+}
+
 // MemberByID ใช้กับ GET /api/me: เลขมาจากตั๋วที่ตรวจแล้ว
 func (s *Store) MemberByID(ctx context.Context, id int64) (Member, error) {
     var m Member
