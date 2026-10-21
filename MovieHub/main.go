@@ -59,6 +59,7 @@ func main() {
     mux.HandleFunc("POST /api/admin/movies", admin(h.AdminCreateMovie))
     mux.HandleFunc("PUT /api/admin/movies/{id}", admin(h.AdminUpdateMovie))
     mux.HandleFunc("DELETE /api/admin/movies/{id}", admin(h.AdminDeleteMovie))
+   
 
     origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
 
